@@ -15,6 +15,9 @@ def compress_pdf():
     if not file:
         return jsonify({"error": "No file uploaded"}), 400
 
+    # Get optional compression level
+    quality = request.form.get("quality", "/screen")
+
     with tempfile.TemporaryDirectory() as tmpdir:
         input_path = os.path.join(tmpdir, "input.pdf")
         output_path = os.path.join(tmpdir, "output.pdf")
@@ -25,7 +28,7 @@ def compress_pdf():
             gs_cmd,
             "-sDEVICE=pdfwrite",
             "-dCompatibilityLevel=1.4",
-            "-dPDFSETTINGS=/screen",
+            f"-dPDFSETTINGS={quality}",
             "-dDownsampleColorImages=true",
             "-dColorImageResolution=72",
             "-dNOPAUSE",
@@ -42,21 +45,21 @@ def compress_pdf():
             return jsonify({"error": f"Ghostscript failed: {str(e)}"}), 500
 
 @app.route("/compress-any", methods=["POST"])
-def compress_any_file():
-    file = request.files.get("file")
-    if not file:
-        return jsonify({"error": "No file uploaded"}), 400
+def compress_any_files():
+    files = request.files.getlist("file")
+    if not files:
+        return jsonify({"error": "No files uploaded"}), 400
 
-    filename = file.filename
     with tempfile.TemporaryDirectory() as tmpdir:
-        file_path = os.path.join(tmpdir, filename)
-        file.save(file_path)
+        zip_path = os.path.join(tmpdir, "compressed_files.zip")
 
-        zip_path = os.path.join(tmpdir, f"{filename}.zip")
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            zipf.write(file_path, arcname=filename)
+            for f in files:
+                file_path = os.path.join(tmpdir, f.filename)
+                f.save(file_path)
+                zipf.write(file_path, arcname=f.filename)
 
-        return send_file(zip_path, as_attachment=True, download_name=f"{filename}.zip")
+        return send_file(zip_path, as_attachment=True, download_name="compressed_files.zip")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
