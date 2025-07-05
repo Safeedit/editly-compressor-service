@@ -1,21 +1,25 @@
-# Base image
+# Use lightweight Python image
 FROM python:3.11-slim
 
-# Install Ghostscript
-RUN apt-get update && apt-get install -y \
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install system dependencies (including Ghostscript)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ghostscript \
-    && apt-get clean
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy code
+# Copy application files
 COPY . .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose Flask port
+# Expose port
 EXPOSE 10000
 
 # Run the app
